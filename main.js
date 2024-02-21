@@ -1,4 +1,5 @@
-document.getElementsByClassName("embed").array.forEach(element => {
+document.querySelectorAll(".embed").forEach(element => {
+    console.log(element);
     $.ajax({ url: element.getAttribute("data-src"), success: file_content => {
         element.innerHTML = file_content;
     }, error: () => {
