@@ -1,3 +1,4 @@
+console.log("Loading...");
 document.querySelectorAll(".embed").forEach(element => {
     console.log(element);
     $.ajax({ url: element.getAttribute("data-src"), success: file_content => {

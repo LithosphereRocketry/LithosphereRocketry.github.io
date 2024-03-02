@@ -1,0 +1,17 @@
+.header {
+    overflow: hidden;
+    background-color: #F0F0F0;
+    padding: 0px;
+}
+
+.header a {
+    text-decoration: none;
+    color: black;
+    margin: 0px;
+    border: 0px;
+    padding: 20px;
+}
+
+.header a:hover {
+    background-color: #E0E0F0;
+}
