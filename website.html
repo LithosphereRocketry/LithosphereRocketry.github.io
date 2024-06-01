@@ -178,6 +178,11 @@ hand-creates a one-line HTML file that contains just the title and nothing else.
 This is then substituted via the usual method. This is an awful, hacky solution,
 but it's good enough for now, and unless I get a sudden burst of inspiration I'm
 not sure whether it's worth fixing at this moment.</p>
+<p>In the process of doing this, I realized that it would probably be nice to have
+recursive embeds, so I could embed the title block into my preexisting header
+block and save an extra import. This wasn't bad to implement, although my
+implementation is not especially pretty; it just repeatedly scans the document
+until no new substitutions remain.</p>
 <h2 id="future-work">Future work</h2>
 <p>A major issue with the site as currently conceived is that every project needs
 to have a tile in the project table-of-contents page, which are built mostly
