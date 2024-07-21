@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>C++ for Propulsion Enthusiasts - LithosphereRocketry</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="pygmentize.css"> 
+<link rel="stylesheet" href="styles.css"></head>
+    <body>
+        <div class="header">
+    <span style="float: left;">
+        <a href="/">Home</a>
+        <a href="/projects.html">Projects</a>
+    </span>
+    <span style="float: right;">
+        <a href="https://github.com/LithosphereRocketry/LithosphereRocketrySiteSource">Source</a>
+    </span>
+</div><div class="article-body">
+            <h1 id="c-for-propulsion-enthusiasts">C++ for Propulsion Enthusiasts</h1>
+<p><strong>Or, What They Should Have Taught You in ECE160 and ECE230</strong></p>
+<div class="toc">
+<ul>
+<li><a href="#c-for-propulsion-enthusiasts">C++ for Propulsion Enthusiasts</a><ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#useful-links">Useful Links</a></li>
+</ul>
+</li>
+<li><a href="#part-1-the-c-language">Part 1: The C++ Language</a><ul>
+<li><a href="#memory">Memory</a><ul>
+<li><a href="#static-memory">Static memory</a></li>
+<li><a href="#stack-memory">Stack memory</a></li>
+<li><a href="#heap-memory">Heap memory</a></li>
+<li><a href="#sidebar-undefined-behavior">Sidebar: Undefined Behavior</a></li>
+</ul>
+</li>
+<li><a href="#pointers">Pointers</a><ul>
+<li><a href="#sidebar-const">Sidebar: const</a></li>
+<li><a href="#sidebar-references">Sidebar: References</a></li>
+</ul>
+</li>
+<li><a href="#classes">Classes</a><ul>
+<li><a href="#sidebar-struct">Sidebar: struct</a></li>
+<li><a href="#sidebar-member-dereference-operator">Sidebar: Member-dereference operator</a></li>
+<li><a href="#this">this</a><ul>
+<li><a href="#sidebar-const-member-functions">Sidebar: const member functions</a></li>
+</ul>
+</li>
+<li><a href="#inheritance">Inheritance</a><ul>
+<li><a href="#conversion">Conversion</a></li>
+<li><a href="#virtual">virtual</a></li>
+</ul>
+</li>
+<li><a href="#other-special-functions">Other special functions</a><ul>
+<li><a href="#copy-constructor">Copy constructor</a></li>
+<li><a href="#move-constructor">Move constructor</a></li>
+<li><a href="#copy-and-move-assignment">Copy and move assignment</a></li>
+<li><a href="#destructor">Destructor</a></li>
+<li><a href="#the-rule-of-five">The Rule of Five</a></li>
+<li><a href="#sidebar-the-rule-of-five-with-virtual-functions">Sidebar: the Rule of Five with virtual functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<h2 id="introduction">Introduction</h2>
+<p>Welcome to <strong>C++ for Propulsion Enthusiasts!</strong> This guide aims to bring you from
+making basic Arduino sketches to being able to write fast, efficient, and
+flight-ready C++ code. C++ is a very complex language that exposes a lot of
+knobs and levers to the programmer in order to make it possible to write code
+that does exactly what you want, regardless of how specific your needs are; for
+that reason, this guide is going to be quite long and possibly quite boring to
+people other than me. I've tried not to make things too dry wherever possible,
+but it's definitely not going to be too fun to read through in one sitting. I
+recommend going through one section at a time and spending a bit of time playing
+with each topic before moving on.</p>
+<p>This guide assumes you have a basic understanding of C/C++ program structure and
+syntax, bytes and binary representation, and the basics of the Arduino framework
+(e.g. what you would learn from ECE160). There are many ways to approach these
+topics and many people more qualified to teach them than I am; see the Useful
+Links section for guides I like. Knowledge of Java or other similar languages
+may also be helpful.</p>
+<p>It's worth noting that Arduino tends to smooth over a lot of the details of 
+embedded systems. This leads to several compromises that may cause problems in
+edge-case uses, so more performance- or functionality-critical projects might
+want to consider using different frameworks. However, those frameworks tend to
+be highly hardware-specific, difficult to learn, and don't provide many
+device-support libraries, so Arduino tends to be the most practical for
+competition-team projects. If you're interested in lower-level frameworks,
+ECE230 provides a good introduction to what's involved in using those.</p>
+<p>Also, for the purposes of documentation-browsing, Arduino is currently locked to
+the C++11 standard; when browsing the C++ documentation, be wary of features
+that are marked as available only in newer versions.</p>
+<h2 id="useful-links">Useful Links</h2>
+<ul>
+<li>Official Arduino project book: https://www.uio.no/studier/emner/matnat/ifi/IN1060/v21/arduino/arduino-projects-book.pdf</li>
+<li>Binary tutorial: https://www.cmu.edu/gelfand/lgc-educational-media/digital-education-modules/dem-documents/new-the-world-of-the-internet-handouts.pdf</li>
+<li>C++ documentation: https://en.cppreference.com/w/</li>
+<li>Arduino documentation: https://docs.arduino.cc/</li>
+<li>PlatformIO documentation: https://docs.platformio.org/en/latest/</li>
+<li>Godbolt Compiler Explorer: https://godbolt.org/</li>
+</ul>
+<h1 id="part-1-the-c-language">Part 1: The C++ Language</h1>
+<h2 id="memory">Memory</h2>
+<blockquote>
+<p>Note, if you have taken CSSE132 or equivalent a lot of this will be repeat
+information for you, feel free to skip ahead</p>
+</blockquote>
+<p>Whenever you want to store a piece of data on a computer, regardless of any
+other constraints, it has to live somewhere. In most modern languages, deciding
+where an object has to live in memory is largely abstracted away; when you
+create an object in Java or MATLAB, the language's runtime finds a free location
+in the program's memory in which to store the object, marks that object in use,
+and then seamlessly hands you back a reference to that memory. It then tracks
+where you use that object, and as soon as you're done, it reclaims the memory
+and makes it available to the rest of the program in a process called garbage
+collection.</p>
+<p>This is a wonderful system that makes programming easy, but it has downsides;
+it requires a fair amount of work on the part of the computer to keep track of
+all of the objects it's juggling at any given time. Additionally, there is added
+uncertainty in the program's execution; the runtime decides when it wants to
+sweep for unused projects in the background, so your program will periodically
+have unexpected hitches in performance as memory is cleaned up.</p>
+<h3 id="static-memory">Static memory</h3>
+<p>In C, C++, and other non-garbage-collected languages, in contrast, memory
+allocation is mostly manual. Variables declared at the top level of the program,
+in global scope, have <strong>static</strong> storage duration; the compiler allocates them
+a fixed location in program memory, which is only used for them and nothing
+else:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// These objects will exist forever</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="c1">// Yes, even user-defined classes</span>
+<span class="n">MyClass</span><span class="w"> </span><span class="nf">obj</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="s">"abc"</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+
+<p>Static-storage objects are unusual in that they have a defined initial value;
+the C standard defines the program memory to be initialized with all zeroes, so
+primitive objects like integers will always start with the value zero. (For
+classes, initialization is a bit more complex; more to come later.) Because this
+allocation happens at compile-time, we can consider static allocation to be
+essentially free of performance cost.</p>
+<h3 id="stack-memory">Stack memory</h3>
+<p>Variables declared inside a function, loop, or other construct are defined as
+having <strong>automatic</strong> storage duration; in this guide, this will be referred to
+by the more common colloquial term of being <strong>on the stack</strong>. The stack is a
+region at the top of memory that gradually expands downward as variables are
+allocated, like so:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// stack:</span>
+<span class="c1">// (nothing)</span>
+<span class="c1">// ============</span>
+<span class="c1">// ... unallocated memory</span>
+<span class="c1">// ...</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">myfunc</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// stack:</span>
+<span class="w">    </span><span class="c1">// x</span>
+<span class="w">    </span><span class="c1">// y</span>
+<span class="w">    </span><span class="c1">// ============</span>
+<span class="w">    </span><span class="c1">// ... unallocated memory</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// stack:</span>
+<span class="w">        </span><span class="c1">// x</span>
+<span class="w">        </span><span class="c1">// y</span>
+<span class="w">        </span><span class="c1">// z</span>
+<span class="w">        </span><span class="c1">// ============</span>
+<span class="w">        </span><span class="c1">// ... unallocated memory</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="c1">// z deallocated</span>
+<span class="w">    </span><span class="c1">// stack:</span>
+<span class="w">    </span><span class="c1">// x</span>
+<span class="w">    </span><span class="c1">// y</span>
+<span class="w">    </span><span class="c1">// ============</span>
+<span class="w">    </span><span class="c1">// ... unallocated memory, formerly z</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">for</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">q</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="n">q</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// stack:</span>
+<span class="w">        </span><span class="c1">// x</span>
+<span class="w">        </span><span class="c1">// y</span>
+<span class="w">        </span><span class="c1">// q (same memory that was used for z)</span>
+<span class="w">        </span><span class="c1">// ============</span>
+<span class="w">        </span><span class="c1">// ... unallocated memory</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="c1">// q deallocated</span>
+<span class="w">    </span><span class="c1">// stack:</span>
+<span class="w">    </span><span class="c1">// x</span>
+<span class="w">    </span><span class="c1">// y</span>
+<span class="w">    </span><span class="c1">// ============</span>
+<span class="w">    </span><span class="c1">// ... unallocated memory, formerly z and q</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span><span class="w"> </span><span class="c1">// x and y deallocated</span>
+</code></pre></div>
+
+<p>Note that memory on the stack is frequently reused, and there is no guarantee
+(as there is for static variables) that the memory will be initialized with any
+particular value. Therefore, whenever you place a primitive variable on the 
+stack, it's essential that you initialize the variable with some value before
+it's used. Most compilers will attempt to detect this and display a warning, but
+it isn't always caught in obscure scenarios. Because allocating memory on the
+stack only requires moving the "bar" in the above diagram (referred to as the
+stack pointer), it can also be considered mostly "free" from a performance
+perspective.</p>
+<h3 id="heap-memory">Heap memory</h3>
+<p>The third way to allocate memory in C, C++ and related languages is on the
+<strong>heap</strong>. Heap allocation is closer to what languages like Java do to allocate
+memory; the program keeps track of which memory is available, and on-demand
+hands out memory to functions that request it. In C++, the syntax for doing so
+looks like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Allocate 100 bytes and treat the resulting block as integers</span>
+<span class="c1">// This is the old-school, C way to do things; you probably shouldn't use it in</span>
+<span class="c1">// C++ in most cases</span>
+<span class="c1">// Don't worry about the syntax here, we'll get to it in more detail later</span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">mem1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">// Allocate enough memory to store 25 integers (this is better; you don't need</span>
+<span class="c1">// to care about how much space your compiler decides an integer needs)</span>
+<span class="c1">// Unlike malloc, there are different operators for single items and arrays</span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">mem2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">// one integer that is equal to 5</span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">mem3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">25</span><span class="p">];</span><span class="w"> </span><span class="c1">// 25 integers with unknown contents</span>
+</code></pre></div>
+
+<p>However, unlike in Java and other garbage-collected languages, heap-allocated
+variables are not tracked in any way once they're allocated. It is the
+programmer's responsibility to ensure they release the memory once it's no
+longer in use:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Always use free() for malloc()</span>
+<span class="n">free</span><span class="p">(</span><span class="n">mem1</span><span class="p">);</span><span class="w"></span>
+<span class="c1">// free() will leave the pointer pointing at unallocated memory; reset it to</span>
+<span class="c1">// null to make it clear that it's no longer valid</span>
+<span class="n">mem1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nullptr</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">// Always use delete for new</span>
+<span class="k">delete</span><span class="w"> </span><span class="n">mem2</span><span class="p">;</span><span class="w"></span>
+<span class="k">delete</span><span class="p">[]</span><span class="w"> </span><span class="n">mem3</span><span class="p">;</span><span class="w"></span>
+<span class="c1">// Delete also isn't guaranteed to automatically nullify, but some compilers</span>
+<span class="c1">// might - don't count on it</span>
+<span class="n">mem2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nullptr</span><span class="p">;</span><span class="w"></span>
+<span class="n">mem3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nullptr</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>Heap-allocating variables has several advantages. Because the memory is
+allocated on-the-fly, we don't have to know at compile-time how much memory we
+will need; for example, if we're writing a word processor, we can check how
+large the document we're opening is and allocate just enough memory to store it.
+We also can allocate memory in more complex patterns than we can on the stack;
+for example, we might have a sensor-reading function that collects a large swath
+of data and puts it in a heap-allocated queue; then, our data processing code
+can independently take items off of that queue, analyze them, and then free them
+once they are done.</p>
+<p>However, heap allocation has a number of disadvantages. Figuring out where to
+put memory has a cost in both performance and memory usage, especially on small
+systems. Additionally, we only have a finite amount of memory; at any time a
+call to <code>new</code> or <code>malloc</code> might fail and return <code>nullptr</code> or throw an error,
+meaning that it couldn't find a place to put the requested object. This is
+compounded by the fact that we have to manually free memory; if we forget to do
+so, referred to as a "memory leak", we will gradually accumulate garbage in our
+heap and eventually run out. For these reasons, we typically try to avoid using
+heap allocation whenever possible in embedded code.</p>
+<h3 id="sidebar-undefined-behavior">Sidebar: Undefined Behavior</h3>
+<p>You may have noticed that at several points in this guide, I tell you not to do
+things that will compile just fine and are perfectly valid code. Usually, this
+means that doing so will cause <strong>undefined behavior</strong>. Here are a few common
+examples of such cases:</p>
+<ul>
+<li>Putting a value larger than the maximum limits of the type into an integer
+  variable</li>
+<li>Not returning from a function with a non-void return type</li>
+<li>Reading a stack- or heap-allocated variable without initializing it</li>
+<li>Using <code>nullptr</code> as a memory location</li>
+<li>Using a heap-allocated memory block of size zero</li>
+<li>Mixing <code>new</code> and <code>free</code> or <code>malloc</code> and <code>delete</code></li>
+</ul>
+<p>The only property of undefined behavior is that there is no limitation on what
+it is allowed to do. The compiler may choose to do what you wanted, something
+contrary to what you wanted, or something seemingly unrelated to what you typed;
+all are fair game within the standard. In the C community, this property is
+jokingly referred to as "nasal demons"; when faced with undefined behavior, it
+is valid for a compiler to decide that your program should make demons fly out
+of your nose. Here are a few memorable examples that I've encountered:</p>
+<ul>
+<li>Upon failing to include a <code>return</code> in a function, the compiler decided to run
+  the function repeatedly forever instead of continuing to the next line.</li>
+<li>Upon attempting to place a floating-point infinity in an integer variable,
+  the compiler would place the maximum integer there at compile-time but zero
+  there at runtime.</li>
+<li>When compiling an <code>if</code>/<code>else</code> statement where the <code>else</code> branch contained
+  undefined behavior, the compiler decided that the undefined behavior would be
+  to imitate the result of the <code>if</code> branch, resulting in the if-statement being
+  completely inconsequential.</li>
+</ul>
+<p>In general, we almost never want to cause undefined behavior to occur. There are
+cases where it is acceptable if we have a good idea of what our particular
+compiler will choose to do, and occasionally it can even be used to hint to the
+compiler that a particular section can be optimized away, but in general extreme
+caution should be used in those scenarios.</p>
+<h2 id="pointers">Pointers</h2>
+<p>You may have noticed in the previous section that we introduced a new piece of
+syntax:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">mem2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+
+<p>This is a pointer; it is a datatype that refers to the memory location of
+another piece of data, and is read as "pointer to int". We can get the location
+of any variable with the <code>&amp;</code> operator:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">pointer_to_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>We can also refer to the variable at a given location, known as dereferencing,
+with the <code>*</code> operator:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">pointer_to_y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+<span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">location_of_y</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>Pointers can be made to other pointers, at any level of nesting:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">px</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">**</span><span class="w"> </span><span class="n">ppx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">px</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">***</span><span class="w"> </span><span class="n">pppx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ppx</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">***</span><span class="n">pppx</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>Pointers mostly behave like integers, with a handful of differences. They can be
+assigned and compared as normal:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">px1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">px2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">px1</span><span class="p">;</span><span class="w"></span>
+<span class="k">if</span><span class="p">(</span><span class="n">px1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">px2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// yes</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+
+<p>We've mentioned the special value <code>nullptr</code> a few times; this is a constant
+provided by the language that has the literal value of zero. Since zero is
+considered "false" and all other integers considered "true", this means that
+<code>if(ptr)</code> is a handy shortcut to check if a pointer is null:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">4000000</span><span class="p">);</span><span class="w"> </span><span class="c1">// might run out of memory</span>
+<span class="k">if</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// do thing</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// out of memory error</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+
+<p>Pointers may be created to any object, even ones that may be deallocated later;
+a common pitfall is pointers to stack-allocated values that then outlive their
+scope:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="nf">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">myptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="p">();</span><span class="w"></span>
+<span class="o">*</span><span class="n">myptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="c1">// undefined behavior, probably crashes</span>
+</code></pre></div>
+
+<p>A common use of pointers, especially in older C code, is to return multiple
+values or large, unwieldy datatypes from a function:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="n">MyBuffer</span><span class="o">*</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="cm">/*ok*/</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">MyBuffer</span><span class="w"> </span><span class="n">mybuf</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="w"> </span><span class="n">errcode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mybuf</span><span class="p">);</span><span class="w"></span>
+<span class="k">if</span><span class="p">(</span><span class="n">errcode</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// something went wrong</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// buffer has been filled</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+
+<p>In general, though, this shouldn't be used without consideration; it makes code
+harder to read and is prone to pitfalls if you don't think through your logic
+carefully.</p>
+<h3 id="sidebar-const">Sidebar: <code>const</code></h3>
+<p>Any variable in C or C++ can be declared as <code>const</code>. This simply means that it
+can't be modified once created:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="n">x</span><span class="w"> </span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// error</span>
+</code></pre></div>
+
+<p>Pointers can be <code>const</code> in multiple ways:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">;</span><span class="w"> </span><span class="c1">// Pointer to constant</span>
+<span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="c1">// ok</span>
+<span class="o">*</span><span class="n">x</span><span class="w"> </span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// error</span>
+<span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">;</span><span class="w"> </span><span class="c1">// Constant pointer to non-constant</span>
+<span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="o">:</span><span class="w"> </span><span class="c1">// error</span>
+<span class="o">*</span><span class="n">x</span><span class="w"> </span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// ok</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">;</span><span class="w"> </span><span class="c1">// Constant pointer to constant</span>
+<span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="o">:</span><span class="w"> </span><span class="c1">// error</span>
+<span class="o">*</span><span class="n">x</span><span class="w"> </span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// error</span>
+</code></pre></div>
+
+<h3 id="sidebar-references">Sidebar: References</h3>
+<p>Pointers have existed since the very beginning of the C language, but C++ added
+an extra related type: references. These are declared like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="kt">int</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>These types behave exactly like pointers, but automatically include dereference
+operators when used. They also can't be nulled. Generally, I don't like these
+types very much, since they obscure what's happening under the hood: because
+they appear as values while actually being pointers, it's easy to do things like
+trying to copy them by value and accidentally only copy the reference. However,
+there is one scenario where they allow a very useful optimization. If you pass
+a large user-defined type to a function, it has to be copied in its entirety:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// copies t, which might be hundreds of bytes</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="n">MyType</span><span class="w"> </span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">MyType</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="n">func</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+
+<p>By changing the parameter to a <code>const MyType&amp;</code>, the syntax for calling the
+function and using the parameter are unchanged, but no copy occurs:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// no copy</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">MyType</span><span class="o">&amp;</span><span class="w"> </span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">MyType</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="n">func</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+
+<p>This can end up increasing performance by a substantial amount in some cases.
+However, modern C++ compilers have gotten very good at optimizing out
+pass-by-value under the hood, so this isn't always necessary either.</p>
+<h2 id="classes">Classes</h2>
+<p><strong>Classes</strong> are the part of C++ syntax that will look most familiar to Java
+programmers. A class represents a user-defined type of object which may be
+reused in multiple places.</p>
+<blockquote>
+<p>Classes are by far the most sophisticated piece of syntax added by C++. Grab
+yourself a snack and a beverage before starting this section, there's going to
+be a lot to go over here.</p>
+</blockquote>
+<p>Defining a class looks like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Car</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span><span class="w"> </span><span class="c1">// 1</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">wheels</span><span class="p">;</span><span class="w"> </span><span class="c1">// 2</span>
+<span class="w">        </span><span class="n">Car</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="n">wheels</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="c1">// 3</span>
+<span class="w">        </span><span class="n">Car</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">wheels</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">wheels</span><span class="p">(</span><span class="n">wheels</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// do things on creation</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">drive</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 4</span>
+<span class="w">            </span><span class="c1">// do something</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"> </span><span class="c1">// 5</span>
+
+<span class="n">Car</span><span class="w"> </span><span class="n">myCar</span><span class="p">;</span><span class="w"> </span><span class="c1">// 6a</span>
+<span class="n">Car</span><span class="w"> </span><span class="nf">yourCar</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span><span class="w"> </span><span class="c1">// 6b</span>
+<span class="n">Car</span><span class="w"> </span><span class="n">theirCar</span><span class="p">{</span><span class="mi">3</span><span class="p">};</span><span class="w"> </span><span class="c1">// 6c</span>
+<span class="n">yourCar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Car</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span><span class="w"> </span><span class="c1">// 6d</span>
+</code></pre></div>
+
+<p>There's a lot to take in here. The numbered comments are the key points:</p>
+<ol>
+<li>
+<p><strong>Access modifier.</strong> If you've used Java you may be used to these being placed in
+   front of every member; in C++, they act like sections instead. Valid options
+   are:</p>
+<ul>
+<li><code>public</code>: Anyone can use.</li>
+<li><code>protected</code>: Only this class and subclasses can use.</li>
+<li><code>private</code>: Only this class can use. This is the default.</li>
+</ul>
+</li>
+<li>
+<p><strong>Member variable.</strong> This acts like a normal variable and can be accessed
+   like <code>myCar.wheels</code>.</p>
+</li>
+<li>
+<p><strong>Constructor.</strong> This is a special function with no return type that creates
+   an instance of the class. It can be followed by a colon, which defines a list
+   of member and/or superclass constructors that should be called. A lot of the
+   time, you can define a constructor's entire behavior in this list and have
+   nothing in the function body.</p>
+</li>
+<li>
+<p><strong>Member function.</strong> This acts <em>mostly</em> like a normal function, with a few
+   exceptions. It can be accessed like <code>myCar.drive()</code>.</p>
+</li>
+<li>
+<p>Unlike most blocks using <code>{...}</code>, classes always end with a semicolon. This
+   is for somewhat archaic C reasons.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup></p>
+</li>
+<li>
+<p>Object declaration. Once you've created a class, you can use it like any
+   other type. Classes can be created in a couple of ways:</p>
+<ul>
+<li>6a: Just defining an object like this calls the constructor with no
+  arguments.</li>
+<li>6b: Calls the constructor with the given arguments. Note that this doesn't
+  work unless there is at least one argument.<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup></li>
+<li>6c: Same as 6b, but works in a very slightly different set of
+  circumstances (works with no arguments, but has weird behavior with
+  container types and public members). The differences are weird and
+  confusing and I don't think anyone fully understands them.</li>
+<li>6d: You can also call the constructor manually to create an object without
+  creating a variable for it.</li>
+</ul>
+</li>
+</ol>
+<h3 id="sidebar-struct">Sidebar: <code>struct</code></h3>
+<p>You may occasionally see classes declared with <code>struct Car {...}</code> instead of
+<code>class Car {...}</code>. <code>struct</code> is a carried-over keyword from C, which doesn't have
+<code>class</code>; in C++, it is identical to <code>class</code> except that the default access
+modifier is <code>public</code> instead of <code>private</code>.</p>
+<h3 id="sidebar-member-dereference-operator">Sidebar: Member-dereference operator</h3>
+<p>If you have a pointer to an object of type <code>Car</code>, you can access its members via
+the <code>-&gt;</code> operator:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">Car</span><span class="o">*</span><span class="w"> </span><span class="n">ptrToMyCar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">myCar</span><span class="p">;</span><span class="w"></span>
+<span class="n">ptrToMyCar</span><span class="o">-&gt;</span><span class="n">drive</span><span class="p">();</span><span class="w"></span>
+</code></pre></div>
+
+<p>This is identical to typing <code>(*ptrToMyCar).drive()</code>, just easier to deal with.</p>
+<h3 id="this"><code>this</code></h3>
+<p>Like in many languages, C++ provides a <code>this</code> keyword which can be used inside
+a class. <code>this</code> is always a pointer to the current object. In most cases, you
+don't need to use it -- using a member variable inside a member function implies
+<code>this-&gt;</code> -- but it may be useful in some cases to clarify what a variable refers
+to.</p>
+<h4 id="sidebar-const-member-functions">Sidebar: <code>const</code> member functions</h4>
+<p>You can suffix a member function with <code>const</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Car</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span><span class="w"></span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">drive</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+</code></pre></div>
+
+<p>This makes the <code>this</code> pointer for that function a pointer-to-const; all members
+of the class are considered <code>const</code> and only functions with the <code>const</code>
+qualifier can be called. It's generally good form to add <code>const</code> to any function
+that doesn't modify the class, as it makes optimization easier for the compiler
+and is a good reassurance to future programmers that your function doesn't do
+anything unexpected.</p>
+<p>Note that there are some holes in this restriction due to the subtleties of
+pointer-<code>const</code> syntax. Members which themselves are pointers will be made
+<code>const</code>-pointer rather than pointer-to-<code>const</code>, so the things they point to may
+still be modified; this includes members of the class itself, since the compiler
+has no way to tell what they point to ahead of time. You can use this to
+underhandedly modify a class inside a const function, but you probably shouldn't
+unless you have a very good reason to.</p>
+<h3 id="inheritance">Inheritance</h3>
+<p>Similar to Java, classes in C++ can <strong>inherit</strong> the behaviors of other classes.
+This is used when a given type -- the <strong>subclass</strong> -- is some specialized type
+of another type -- the <strong>superclass</strong>.  The syntax for doing so looks like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Ford</span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Car</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">Ford</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">getMiles</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// new function</span>
+<span class="w">            </span><span class="c1">/// ...</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">drive</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// overridden function</span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+</code></pre></div>
+
+<p>Note that the inheritance includes an access modifier; this gets applied on top
+of any preexisting access modifiers in the superclass. If you inherit from a
+class with public members as <code>private</code>, all of its members will be <code>private</code>
+within your class.</p>
+<h4 id="conversion">Conversion</h4>
+<p>One of the common uses for an inherited class is to allow multiple objects to
+fit into the same "slot". In the example above, you might have a preexisting
+function that takes a Car, and you want to be able to use your Ford in it. There
+are two different ways to do this:</p>
+<ul>
+<li><strong>Conversion of pointers or references.</strong> A <code>Car*</code> or <code>Car&amp;</code> may be made to point
+  to a <code>Ford</code> without issue.</li>
+<li><strong>Conversion of values.</strong> C++ will also allow you to place a <strong><em>value</em></strong> of
+  type <code>Ford</code> into a variable of type <code>Car</code>. <strong>THIS IS USUALLY BAD. DO NOT DO</strong>
+  <strong>IT.</strong> This is prone to a bug known as "slicing"; if <code>Ford</code> adds extra member
+  variables to <code>Car</code>, those variables won't fit in the space allocated for <code>Car</code>
+  and functions that try to use those variables will instead read garbage. In
+  this case, it's fine since <code>Ford</code> doesn't add any new member variables, only
+  functions, but you shouldn't count on this. </li>
+</ul>
+<h4 id="virtual"><code>virtual</code></h4>
+<p>Unlike in a lot of other languages, functions in C++ classes can't be overriden
+by default in the way you might expect. The code above actually has a subtle
+bug; we've overridden <code>drive()</code> in the <code>Ford</code> subclass, but if we store a
+pointer to a <code>Ford</code> in a <code>Car*</code>, the compiler will still use the <code>Car</code> version
+of <code>drive</code> for that object. This is because determining the correct function to
+use for an inherited class is a very, very small amount of additional overhead,
+and C++ is strongly averse to adding additional overhead if there is any
+possible scenario where it might not be needed. This makes it good for
+high-performance use cases like embedded systems, but can lead to a lot of weird
+edge-case behavior like this.</p>
+<p>In order to get Java-style function overriding, the function should be prefixed
+with the keyword <code>virtual</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Car</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span><span class="w"></span>
+<span class="w">        </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">drive</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+</code></pre></div>
+
+<p>This keyword creates a hidden extra member to the class called a <code>vtable</code>; this
+is a pointer to a list of functions that are overridden in this particular
+object. Then, when <code>drive()</code> is called, the program will check at runtime which
+table this particular object uses and call the <code>drive()</code> function from that
+table. As you might expect, this adds a bit of overhead, so it's best to avoid
+using it too frequently; however, compilers are pretty good at optimizing it out
+if the type doesn't actually change at runtime, so it's not the end of the
+world.</p>
+<p>If you want subclasses to be forced to implement a virtual function as in Java's
+abstract methods, you can specify it as <strong>pure virtual</strong> like so:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">drive</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>Any class with a pure-virtual function cannot be instantiated; its subclasses
+must add their own implementations.</p>
+<h3 id="other-special-functions">Other special functions</h3>
+<p>Besides the constructor, there are a few other special-case functions that are
+helpful to be aware of. Most are given some reasonable default implementation
+automatically, so you don't need to worry about them too much in most cases.</p>
+<h4 id="copy-constructor">Copy constructor</h4>
+<p>The copy constructor is just a normal constructor that takes only one argument
+which is a reference to its own class. For example, both of these are valid:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">Car</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</code></pre></div>
+
+<h4 id="move-constructor">Move constructor</h4>
+<p>This is very similar to the copy constructor, but uses a brand-new type in C++11
+called an "rvalue reference". Essentially, it's used for when an object can't be
+copied but might be moved, for example a class that handles some external
+resource; it's not terribly common.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">Car</span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</code></pre></div>
+
+<h4 id="copy-and-move-assignment">Copy and move assignment</h4>
+<p>These are almost the same as the copy and move constructor, but are used for the
+<code>=</code> operator instead of construction. They are an example of operator
+overloading, which we'll discuss later.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</code></pre></div>
+
+<h4 id="destructor">Destructor</h4>
+<p>This is probably the special function you'll use the most. The destructor is a
+piece of code that gets called whenever the object goes out of scope or is
+deleted; here, you should do things like free memory, release resource handles,
+etc. It's defined like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">~</span><span class="n">Car</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</code></pre></div>
+
+<h4 id="the-rule-of-five">The Rule of Five</h4>
+<p>The Rule of Five is a rule of thumb for using special functions, which states
+that if you provide your own implementation for any one of the above functions,
+you should provide an implementation for all of them:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">~</span><span class="n">Car</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Car</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</code></pre></div>
+
+<p>Luckily, if you don't need all of these operations, you don't have to take the
+time to write all of them; you can also specify them as deleted:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delete</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<p>Most of the time, it's best to write your code such that none of these functions
+are needed; some people refer to this as the "rule of zero."</p>
+<h4 id="sidebar-the-rule-of-five-with-virtual-functions">Sidebar: the Rule of Five with virtual functions</h4>
+<p>If you expect other people to inherit from your class, leaving the rule-of-five
+functions unmodified can be risky. Recall that to override functions for base
+class pointers, the base functions have to be <code>virtual</code>. If someone else extends
+your class with a class that requires a destructor, then tries to delete it from
+a pointer to the base class, the destructor won't be called and memory will be
+leaked. To solve this, you can declare the rule-of-five functions as <code>virtual</code>
+and define them as default:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">virtual</span><span class="w"> </span><span class="n">Car</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Car</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+
+<div class="footnote">
+<hr>
+<ol>
+<li id="fn:1">
+<p>The reason this exists is because it's legal to declare a class and
+an object in the same statement, e.g. <code>class Car {...} myCar(3);</code> Basically
+nobody uses this syntax anymore, so don't worry about it too much.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p>If you try to define an object using syntax like <code>Car myCar()</code>, C++ will
+instead declare a function that returns <code>Car</code>. This is the issue that the new
+syntax <code>Car myCar{}</code> attempts to fix, but that isn't exactly free of issues
+either.&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div><a href="#">Back to Top</a>
+        </div>
+    </body>
+</html>
