@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>MOLLUSC - LithosphereRocketry</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="pygmentize.css"> 
+<link rel="stylesheet" href="styles.css"></head>
+    <body>
+        <div class="header">
+    <span style="float: left;">
+        <a href="/">Home</a>
+        <a href="/projects.html">Projects</a>
+    </span>
+    <span style="float: right;">
+        <a href="https://github.com/LithosphereRocketry/LithosphereRocketrySiteSource">Source</a>
+    </span>
+</div><div class="article-body">
+            <h1 id="mollusc">MOLLUSC</h1>
+<p>Because I didn't have enough homebrew computing projects already with NANDy, I
+decided I might as well start another one. A while ago, I took a class on 
+operating systems, where the final project was to add a feature to the
+<a href="https://github.com/mit-pdos/xv6-riscv">XV6 kernel</a>, a minimal command-line Unix
+designed to be tinkered with. Unfortunately, due to my overpacked schedule and
+poor relationship with sleep at the time, I didn't really absorb that much of
+the material. Now, I've decided to revisit it, in my own particular, uhhh...</p>
+<p><img alt='"Idiom, sir?" scene from Monty Python and the Holy Grail' src="media/mollusc/idiomsir.jpg"></p>
+<blockquote>
+<p>Idiom, sir?</p>
+</blockquote>
+<p>Idiom.</p>
+<p>This means that I'm doing everything basically from scratch, in as stubborn a
+way as possible, making most of my decisions based on what I think would be fun
+rather than any particular good design practice.</p>
+<h2 id="goals">Goals</h2>
+<p>This page is not about the operating system itself. Instead, this is about the
+CPU that will run this operating system. Because, of course, I couldn't just get
+one of the <a href="https://riscv.org/">nice, free, easy-to-use CPU designs</a> that
+already have solid toolchains and just write an OS for it. That would be boring.</p>
+<p>This architecture needs to do a couple of things:</p>
+<ul>
+<li><strong>Be relatively easy to understand</strong> If I, the one making the architecture,
+  don't know what's going on, the whole project basically falls apart.</li>
+<li><strong>Be nice to write assembly code for.</strong> My <a href="nandy.html">other CPU project</a>
+  has convinced me that general-purpose registers, big memory spaces, and
+  especially non-tiny stack space are basic necessities when creating something
+  I actually want to use for complex tasks.</li>
+<li>Related, <strong>be nice to write compilers for.</strong> While smaller projects are fine
+  for assembly, writing a whole memory-managed OS is going to be a lot easier
+  if I can do the bulk of the work in C. Unusual, cramped, or otherwise weird
+  architectures tend to be torturous to compile for, and I am not a compiler
+  expert, so keeping it "normal" is going to be the name of the game here.</li>
+<li><strong>Interface with common components.</strong> Even as much as I love writing things
+  from scratch, there is going to be a point where I get really, really sick of
+  designing interface logic.</li>
+</ul><a href="#">Back to Top</a>
+        </div>
+    </body>
+</html>
