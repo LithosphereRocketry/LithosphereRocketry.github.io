@@ -111,10 +111,11 @@ accumulator. Then, instead of the 6502's <code>inx</code> to increment X, we do
 was to reduce the number of states required for instruction execution; no
 instruction takes more than 2 cycles, and a large quantity (basically, anything
 that doesn't require extra memory accesses) only requires one.</p>
-<p>The one exception to the "arithmetic only happens on the accumulator" rule is
-the increment-stack-pointer operation. This is because the processor supports
-interrupts for I/O, and interrupts assume the stack to be in good working order;
-to implement <code>isp</code> from swaps would have to take up 5 instructions:</p>
+<p>Originally, the one exception to the "arithmetic only happens on the
+accumulator" rule was the increment-stack-pointer operation. This is because the
+processor supports interrupts for I/O, and interrupts assume the stack to be in
+good working order; to implement <code>isp</code> from swaps would have to take up 5
+instructions:</p>
 <div class="codehilite"><pre><span></span><code>dint      # Disable interrupts
 sw sp
 addi -3
@@ -124,21 +125,20 @@ eint      # Enable interrupts
 
 <p>That's not even to mention that you might want to increment the stack pointer
 when interrupts were already disabled, so it can't even be made into a nice
-handy macro. With the way the cost and complexity of this project have gradually
-expanded, part of me still thinks it would have been worth doing, but at this
-stage it's not really something I want to mess with.</p>
+handy macro. At this point in the project, I didn't really think this was worth
+the component-count benefit, so <code>isp</code> stayed in as an oddball.</p>
 <p>One place I did accept a bit of clunkiness to reduce the instruction set was in
 procedure calls. NANDy supports relative jumps - i.e. "go to 327 bytes after the
 current instruction" - both with and without boolean conditions, but procedure
 calls - i.e. "go to this location, and store my previous location for future
 use" - must be done by loading the X and Y registers with an exact address:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">wr</span><span class="w"> </span><span class="n">dy</span><span class="w">    </span><span class="p">#</span><span class="w"> </span><span class="n">Stash</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="n">accumulator</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">Y</span><span class="w"> </span><span class="n">register</span><span class="w"></span>
-<span class="n">rdi</span><span class="w"> </span><span class="mh">0</span><span class="n">x12</span><span class="w"> </span><span class="p">#</span><span class="w"> </span><span class="n">Load</span><span class="w"> </span><span class="n">lower</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">address</span><span class="w"></span>
-<span class="n">wr</span><span class="w"> </span><span class="n">dx</span><span class="w">    </span><span class="p">#</span><span class="w"> </span><span class="n">Put</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">lower</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="n">register</span><span class="w"></span>
-<span class="n">rdi</span><span class="w"> </span><span class="mh">0</span><span class="n">x34</span><span class="w"> </span><span class="p">#</span><span class="w"> </span><span class="n">Load</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">address</span><span class="w"></span>
-<span class="n">sw</span><span class="w"> </span><span class="n">dy</span><span class="w">    </span><span class="p">#</span><span class="w"> </span><span class="n">Put</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="n">register</span><span class="p">,</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="kt">time</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">original</span><span class="w"></span>
-<span class="w">         </span><span class="p">#</span><span class="w"> </span><span class="n">accumulator</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">back</span><span class="w"></span>
-<span class="n">jar</span><span class="w">      </span><span class="p">#</span><span class="w"> </span><span class="n">Jump</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="k">function</span><span class="w"></span>
+<div class="codehilite"><pre><span></span><code>wr dy    # Stash current accumulator value in Y register
+rdi 0x12 # Load lower byte of function address
+wr dx    # Put it in lower index register
+rdi 0x34 # Load upper byte of function address
+sw dy    # Put it in upper index register, and at the same time get our original
+         # accumulator value back
+jar      # Jump to function
 </code></pre></div>
 
 <p>Luckily, since this is all register-juggling and doesn't use the stack, it can
@@ -146,56 +146,6 @@ be neatly wrapped up in a macro:</p>
 <div class="codehilite"><pre><span></span><code>call func
 </code></pre></div>
 
-<h2 id="the-datapath">The Datapath</h2>
-<p>After a large amount of iteration and rearranging, I ended up with a datapath
-that looks something like this:</p>
-<p><img alt="High-level diagram of processor datapath" src="media/nandy/datapath.png"></p>
-<p>This is somehow simultaneously a bit of a rat's nest and restrictively simple.
-Let's take a look at how a few relevant instructions pass through the datapath:</p>
-<p>The simplest thing that it's possible to do on the processor is a no-operation,
-abbreviated <code>nop</code>. On a CPU, the task of "doing nothing" typically entails two
-steps: loading the nop instruction itself from memory, and incrementing the
-program counter to point to the next instruction. In the NANDy datapath, those
-steps occur via the green and blue paths here respectively:</p>
-<p><img alt="Processor datapath with fetch and PC-increment paths highlighted" src="media/nandy/datapath-nop.png"></p>
-<p>This same fetch-and-advance structure is present in almost all instructions. For
-example, adding the X register to the accumulator looks like this, with the
-actual operation occurring via the red path:</p>
-<p><img alt="Processor datapath with fetch, PC-increment, and arithmetic paths highlighted" src="media/nandy/datapath-add.png"></p>
-<p>By looking at the datapath here, we can see why I was a little salty about not
-being able to easily replace the separate <code>isp</code> operator with other operations.
-There are three whole multiplexers here whose sole job is to implement the <code>isp</code>
-operation. Yuck. Who knows, I may end up going to the manual solution that I
-said was too complex originally after all.</p>
-<p><img alt="Processor datapath with increment-stack-pointer path highlighted, with arrows to three multiplexers used" src="media/nandy/datapath-isp.png"></p>
-<h2 id="the-io-dilemma">The I/O Dilemma</h2>
-<p>Originally, I designed the processor around a single 8-bit input-output port.
-This made a lot of sense when I first started developing the project; originally
-I had planned for the processor to be a lot more primitive, with only one index
-register instead of two and only 256 bytes of RAM. However, feature-creep got 
-the best of me, and I ended up designing something that might be capable of more
-complex tasks, which necessitated more complex I/O.</p>
-<p>This left me at a bit of a dilemma: I had already designed the instruction set
-to support only a single I/O port, but for most of the end goals I had for this
-architecture, I would need more ports. The options I considered were:</p>
-<ol>
-<li>Keep the I/O design exactly as is, and require every I/O request to contain
-   a prefix indicating the device to target and possibly how many bytes to send
-   to that device.</li>
-<li>Keep the I/O design exactly as is, and consider each I/O request to be a
-   4-bit address followed by a 4-bit data value, or some other similar split.</li>
-<li>Add a single-bit chip-select output that is controlled by dedicated
-   instructions; when chip-select is active, I/O writes set the device address
-   to be used in the next operation.</li>
-<li>Keep the I/O design mostly as is, but reuse one of the index registers as an
-   I/O address register.</li>
-<li>Ditch the I/O register entirely, and make I/O either part of the memory space
-   (<em>a la</em> 6502) or its own pseudo-memory space (<em>a la</em> Z80).</li>
-</ol>
-<p>I fairly quickly narrowed down the options to 3, 4, and 5; most of the devices I
-want to use take an 8-bit input, and having the external logic to distinguish
-prefixes from device data would add a whole lot of complexity that I don't want
-to deal with.</p>
 <h2 id="picking-a-goal">Picking a Goal</h2>
 <p>As the feature creep started to build up on this project, I realized I really
 needed to settle on a goal to keep this from dragging on forever. Originally, I
@@ -223,7 +173,159 @@ virtual-machine bytecode called Z-Machine. This means that any computer that can
 interpret Z-Machine bytecode can in theory run any Infocom game. Being a text
 adventure, I/O can just be a serial port, and the command set was simple enough
 to implement on 8-bit computers of the time like the Atari and Commodore 64.
-Perfect for my minimal CPU!</p><a href="#">Back to Top</a>
+Perfect for my minimal CPU!</p>
+<h2 id="the-datapath">The Datapath</h2>
+<p>After a large amount of iteration and rearranging, I ended up with a datapath
+that looks something like this:</p>
+<p><img alt="High-level diagram of processor datapath" src="media/nandy/datapath.png"></p>
+<p>This is somehow simultaneously a bit of a rat's nest and restrictively simple.
+Let's take a look at how a few relevant instructions pass through the datapath:</p>
+<p>The simplest thing that it's possible to do on the processor is a no-operation,
+abbreviated <code>nop</code>. On a CPU, the task of "doing nothing" typically entails two
+steps: loading the nop instruction itself from memory, and incrementing the
+program counter to point to the next instruction. In the NANDy datapath, those
+steps occur via the green and blue paths here respectively:</p>
+<p><img alt="Processor datapath with fetch and PC-increment paths highlighted" src="media/nandy/datapath-nop.png"></p>
+<p>This same fetch-and-advance structure is present in almost all instructions. For
+example, adding the X register to the accumulator looks like this, with the
+actual operation occurring via the red path:</p>
+<p><img alt="Processor datapath with fetch, PC-increment, and arithmetic paths highlighted" src="media/nandy/datapath-add.png"></p>
+<p>By looking at the datapath here, we can see why I was a little salty about not
+being able to easily replace the separate <code>isp</code> operator with other operations.
+There are three whole multiplexers here whose sole job is to implement the <code>isp</code>
+operation. Yuck. Who knows, I may end up going to the manual solution that I
+said was too complex originally after all.</p>
+<p><img alt="Processor datapath with increment-stack-pointer path highlighted, with arrows to three multiplexers used" src="media/nandy/datapath-isp.png"></p>
+<h2 id="the-io-dilemma">The I/O Dilemma</h2>
+<p>Here, we pause our regular programming (heh) to discuss the I/O situation a bit.
+Originally, I designed the processor around a single 8-bit input-output port.
+This made a lot of sense when I first started developing the project; originally
+I had planned for the processor to be a lot more primitive, with only one index
+register instead of two and only 256 bytes of RAM. However, feature-creep got 
+the best of me, and I ended up designing something that might be capable of more
+complex tasks, which necessitated more complex I/O.</p>
+<p>This left me at a bit of a dilemma: I had already designed the instruction set
+to support only a single I/O port, but for most of the end goals I had for this
+architecture, I would need more ports. The options I considered were:</p>
+<ol>
+<li>Keep the I/O design exactly as is, and require every I/O request to contain
+   a prefix indicating the device to target and possibly how many bytes to send
+   to that device.</li>
+<li>Keep the I/O design exactly as is, and consider each I/O request to be a
+   4-bit address followed by a 4-bit data value, or some other similar split.</li>
+<li>Add a single-bit chip-select output that is controlled by dedicated
+   instructions; when chip-select is active, I/O writes set the device address
+   to be used in the next operation.</li>
+<li>Keep the I/O design mostly as is, but reuse one of the index registers as an
+   I/O address register.</li>
+<li>Ditch the I/O register entirely, and make I/O either part of the memory space
+   (<em>a la</em> 6502) or its own pseudo-memory space (<em>a la</em> Z80).</li>
+</ol>
+<p>I fairly quickly narrowed down the options to 3, 4, and 5; most of the devices I
+want to use take an 8-bit input, and having the external logic to distinguish
+prefixes from device data would add a whole lot of complexity that I don't want
+to deal with.</p>
+<h2 id="reconsidering-isp">Reconsidering <code>isp</code></h2>
+<p>Drawing out the datapath diagrams really made me wonder how much I could save by
+getting rid of that <code>isp</code> instruction, and how much it would really cost me in
+terms of performance. I ran a few tests in the emulator and concluded that the
+tradeoff was worth it. Although removing it ate 10-20% of the processor's
+performance in most of my test programs, this processor isn't really designed
+for computational prowess anyway, and the physical hardware cost was starting to
+look pretty significant. Without it, the datapath looks like this:</p>
+<p><img alt="Same datapath as before, with highlighted multiplexers removed" src="media/nandy/datapath-no-isp.png"></p>
+<p>So not a whole lot different, but a lot of wiring and gates have been removed.
+The main advantage that sold me on this is that it offers a new solution to my
+other nagging issue, configuring the I/O port. As well as cutting out a lot of
+physical complexity, removing <code>isp</code> also frees up the operation codes it
+consumed. Conveniently, the original <code>isp</code> operation code looked like this:</p>
+<div class="codehilite"><pre><span></span><code>Bit:  7 6 5 4 3 2 1 0
+      0 0 1 c [ offs ]
+
+c: 1 if carry bit is set, 0 otherwise
+offs: 4-bit signed offset to apply to stack pointer
+</code></pre></div>
+
+<p>This can conveniently be repurposed as an I/O addressing function:</p>
+<div class="codehilite"><pre><span></span><code>Bit:  7 6 5 4 3 2 1 0
+      0 0 1 [  addr  ]
+
+addr: Address of I/O device to select
+</code></pre></div>
+
+<p>The nice thing about this approach is that it's easy to assign a device a range
+of addresses; since I now have a consistent 5-bit address space, I can set up
+memory maps in much the same way you would on a Z80.</p>
+<p>A further challenge that I glossed over in my earlier discussion of I/O is
+handling multiple interrupts. I'm likely to have a slew of devices competing for
+the processor's attention at any given time, so I need some way to decide which
+the CPU will answer first. The traditional way of doing this is with a priority
+encoder - a device that takes in a whole bunch of interrupt lines, and outputs
+the address of the first one that's active. However, priority encoders require
+a pretty substantial number of chips to implement in NAND logic, and are pretty 
+overkill for my purposes. I'm pretty unlikely to need more than 8 different
+I/O devices, so why not just give the CPU a full list of every active interrupt
+and let it choose which to use?</p>
+<p>To avoid adding any extra instructions, I decided to make this list an I/O
+device of its own, which always resides at address <code>0b11111</code>. Thanks to the
+power of shift instructions, this even makes for a pretty slick
+interrupt-handling process:</p>
+<div class="codehilite"><pre><span></span><code>ISR:
+  isp -3 # note: this is a macro now, implemented in the clunky way from earlier
+  strs 0 # stash the registers so we can restore the state at the end of the ISR
+  rd dx
+  strs 1
+  rd dy
+  strs 2
+
+  ioa 0b11111
+  rd io
+
+  sl    # Peek at the 0th bit; if it's 1, go to handler 0
+  ctog
+  jcz handler_0
+  sl    # Peek at the 1st bit; if it's 1, go to handler 1
+  ctog
+  jcz handler_1
+  ...
+
+isr_done: # handlers jump to here afterward
+  lds 2
+  wr dy
+  lds 1
+  wr dx
+  lds 0
+  jri # Clean up and exit interrupt
+</code></pre></div>
+
+<p>This brings up an interesting issue: it's created yet another piece of CPU state
+that might be messed up by an interrupt. Consider the following scenario:</p>
+<ul>
+<li>I decide to read some data from permanent storage. I set the address of my
+  storage card, and start sending the storage request.</li>
+<li>In the meantime, someone starts typing on the serial port. This sends an
+  interrupt to the CPU.</li>
+<li>The CPU jumps to the interrupt and reads some data from the serial port, then
+  returns execution to me, with the registers just as I left them.</li>
+<li>Seeing nothing wrong, I start writing my data to storage. Oops! I just sent
+  it to the serial port instead.</li>
+</ul>
+<p>There's a couple ways around this problem:</p>
+<ul>
+<li>I could just not do anything, and make blocking interrupts mandatory for any
+  kind of I/O. This is an annoying thing to do and a performance and binary-size
+  hit, but it requires no actual work.</li>
+<li>Interrupts could just force you to look at the interrupt mask, and all I/O
+  happens in "normal" code. This means the interrupt controller doesn't have to
+  borrow an I/O address, but it's really annoying to work with; it also kinda
+  defeats the purpose of having interrupts for a lot of things.</li>
+<li>There could be two different interrupt address registers, one for normal code
+  and one for interrupts. This would be much easier to work with, but adds a lot
+  of hardware, which I'm really trying to avoid.</li>
+</ul>
+<p>Given these alternatives, I'm leaning toward option 1. I'm not too picky about
+the performance of this system, and I <em>should</em> have enough ROM space to throw at
+the issue to avoid any constraints there. </p><a href="#">Back to Top</a>
         </div>
     </body>
 </html>
