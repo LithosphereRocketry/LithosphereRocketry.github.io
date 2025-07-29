@@ -37,7 +37,7 @@ one of the <a href="https://riscv.org/">nice, free, easy-to-use CPU designs</a> 
 already have solid toolchains and just write an OS for it. That would be boring.</p>
 <p>This architecture needs to do a couple of things:</p>
 <ul>
-<li><strong>Be relatively easy to understand</strong> If I, the one making the architecture,
+<li><strong>Be relatively easy to understand.</strong> If I, the one making the architecture,
   don't know what's going on, the whole project basically falls apart.</li>
 <li><strong>Be nice to write assembly code for.</strong> My <a href="nandy.html">other CPU project</a>
   has convinced me that general-purpose registers, big memory spaces, and
@@ -51,7 +51,40 @@ already have solid toolchains and just write an OS for it. That would be boring.
 <li><strong>Interface with common components.</strong> Even as much as I love writing things
   from scratch, there is going to be a point where I get really, really sick of
   designing interface logic.</li>
-</ul><a href="#">Back to Top</a>
+</ul>
+<p>Before attempting any optimizations:</p>
+<div class="codehilite"><pre><span></span><code>ERROR: Max frequency for clock                  '$glbnet$clk48$TRELLIS_IO_IN': 27.30 MHz (FAIL at 48.00 MHz)
+</code></pre></div>
+
+<p>Oh. Hmmm.</p>
+<p>It turns out the way I was doing instruction predication was not very smart.
+My original design had a process like:</p>
+<ul>
+<li>Read in an instruction.</li>
+<li>Check its predicate.</li>
+<li>If the predicate is true, pass it through unchanged. Otherwise, pass through
+  all zeroes (a canonical <code>nop</code>).</li>
+<li>Decode the resulting instruction.</li>
+<li>Check if there are any stall or discard conditions applied to the instruction.</li>
+<li>If so, emit a <code>nop</code>. Otherwise emit the instruction normally.</li>
+</ul>
+<p>You may notice that there are two different places that I can emit a 
+no-operation instead of the normal instruction here. This is not really ideal,
+since I can't count on those to be optimized into one operation; the pre-decode
+no-op is also a problem of its own for optimization, since it's fully specified
+as 0x00000000, meaning that it has to go through the whole decoding process with
+no shortcuts. On the other hand, stalls can leave most of their bits unknown, as
+long as they give enough information to ensure they won't have any side effects.
+To make the most of this, I can just add predicate-fail as another reason to
+discard an instruction, which gives me a hefty improvement:</p>
+<div class="codehilite"><pre><span></span><code>ERROR: Max frequency for clock                  '$glbnet$clk48$TRELLIS_IO_IN': 35.77 MHz (FAIL at 48.00 MHz)
+</code></pre></div>
+
+<p>Well, it isn't quite as good as I was hoping, but it's a good chunk better. A
+huge improvement is almost more concerning here than a moderate bump; when that
+happens, usually it means some important part of the logic has just accidentally
+become undefined, and while the processor will clock very fast in that state it
+won't actually run anything.</p><a href="#">Back to Top</a>
         </div>
     </body>
 </html>
